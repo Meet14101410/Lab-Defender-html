@@ -1,0 +1,93 @@
+const c = document.getElementById("c"), ctx = c.getContext("2d");
+const W = c.width, H = c.height;
+
+let player = { x: W/2, y: H-70, w:80, h:18, speed:6 };
+let bullets = [], enemies = [];
+let score = 0, lives = 3, running = false, spawn = 0;
+let keys = {}, canShoot = true;
+
+const rand = (a,b)=>Math.random()*(b-a)+a;
+
+document.addEventListener("keydown",e=>keys[e.code]=true);
+document.addEventListener("keyup",e=>keys[e.code]=false);
+
+function shoot(){
+  if(!canShoot) return;
+  bullets.push({x:player.x, y:player.y-10, r:6, vy:-7});
+  canShoot=false; setTimeout(()=>canShoot=true,150);
+}
+
+document.getElementById("start").onclick = start;
+
+function start(){
+  bullets = []; enemies = [];
+  score = 0; lives = 3; spawn = 0;
+  running = true;
+  document.getElementById("score").textContent = "Score: 0";
+  document.getElementById("lives").textContent = "Lives: 3";
+  document.getElementById("center").style.display="none";
+  requestAnimationFrame(loop);
+}
+
+function gameOver(){
+  running = false;
+  const cmsg = document.getElementById("center");
+  cmsg.style.display="flex";
+  cmsg.querySelector("h1").textContent = "Game Over";
+  cmsg.querySelector("div").textContent = "Score: "+score;
+  document.getElementById("start").textContent = "Play Again";
+}
+
+function loop(){
+  if(!running) return;
+
+  // Movement
+  if(keys["ArrowLeft"])  player.x -= player.speed;
+  if(keys["ArrowRight"]) player.x += player.speed;
+  if(keys["Space"]) shoot();
+  player.x = Math.max(player.w/2, Math.min(W-player.w/2, player.x));
+
+  // Spawn enemy
+  spawn++;
+  if(spawn > 50){
+    enemies.push({x:rand(20,W-20), y:-20, r:rand(12,30), vy:rand(1,2)});
+    spawn = 0;
+  }
+
+  // Update bullets
+  bullets.forEach(b=>b.y+=b.vy);
+  bullets = bullets.filter(b=>b.y>-10);
+
+  // Update enemies
+  enemies.forEach(e=>e.y += e.vy);
+
+  // Collisions
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+
+    // hit by bullet
+    for(let j=bullets.length-1;j>=0;j--){
+      const b = bullets[j];
+      const dx=e.x-b.x, dy=e.y-b.y;
+      if(dx*dx+dy*dy < (e.r+b.r)**2){
+        bullets.splice(j,1);
+        enemies.splice(i,1);
+        score++;
+        document.getElementById("score").textContent="Score: "+score;
+        break;
+      }
+    }
+
+    // reach bottom
+    if(e.y-e.r>H){
+      enemies.splice(i,1);
+      lives--;
+      document.getElementById("lives").textContent="Lives: "+lives;
+      if(lives<=0) return gameOver();
+    }
+
+    // hit player
+    const px = player.x - player.w/2;
+    const py = player.y - player.h/2;
+    const rx = Math.max(px, Math.min(e.x, px+player.w));
+    const ry = Math.max(py,
